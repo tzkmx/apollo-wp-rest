@@ -9,17 +9,25 @@ import {
 } from 'graphql-tools';
 
 import fetch from 'node-fetch';
+import GraphQLJSON from 'graphql-type-json';
+//import {jpath} from 'json-path';
 
 // Construct a schema, using GraphQL schema language
 const typeDefs = `
+  scalar JSON
+
   type Query {
     myFavoriteArtists: [Artist]
-      wiredPosts: [Post]
-      wiredAuthors: [Author]
+    posts(domain: String!): [Post]
+    authors(domain: String!): [Author]
+    serialJsonResponse(domain: String!,
+        url: String = "/wp-json/wp/v2/",
+				schema: String = "https://"
+    ): SerialJsonResponse
   }
 
   type Artist {
-    id: ID
+		id: ID
     name: String
     image: String
     twitterUrl: String
@@ -32,90 +40,115 @@ const typeDefs = `
     startDateTime: String
   }
 
-  type Post {
-    id: ID
-    title: String
-    url: String
-    author: Author
-  }
+	type Post {
+		id: ID
+		title: String
+		url: String
+		author: Author
+    content: String
+    excerpt: String
+	}
 
-  type Author {
+	 type Author {
     id: Int
+    url: String
     name: String
-    link: String
     avatars: AvatarCollection
   }
 
-  type AvatarCollection {
-    big: String
+	type AvatarCollection {
+		big: String
     medium: String
     small: String
   }
+
+	type SerialJsonResponse {
+    response: JSON
+    url: String!
+    headers: [String]
+  }
 `;
 
+const uaForFetch = (context) => { 
+  return { headers: { "User-Agent": `${context.secrets.user_agent}` } }
+}
+
 const resolvers = {
+  JSON: GraphQLJSON,
   Post: {
-    title: (post) => {
-      return post.title.rendered;
-    },
-    url: (post) => {
-      return post.link;
-    },
-    author: (post) => {
+    title: post => post.title.rendered,
+    url: post => post.link,
+    author: (post,args,ctx) => {
       const id = post.author;
-      return fetch(`https://www.wired.com/wp-json/wp/v2/users/${id}`)
-        .then(res => res.json());
-    }
+      const domain = post.link.split('/').slice(0,3).join('/');
+      return fetch(`${domain}/wp-json/wp/v2/users/${id}`, uaForFetch(ctx))
+      	.then(res => res.json());
+    },
+    content: post => post.content.rendered,
+    excerpt: post => post.excerpt.rendered,
   },
   Author: {
-    name: (author) => {
-      return author.name;
-    },
-    link: (author) => author.link,
-    avatars: (author) => author.avatar_urls
+    name: author => author.name,
+    url: author => author.link,
+    avatars: author => author.avatar_urls
   },
   AvatarCollection: {
-    big: (col) => col[96],
-    medium: (col) => col[48],
-    small: (col) => col[24]
+    big: col => col[96],
+    medium: col => col[48],
+    small: col => col[24]
+  },
+  SerialJsonResponse: {
+    url: response => response.clone().url,
+    response: response => response.clone().json(),
+    headers: response => {
+      const headers = response.clone().headers._headers;
+      let accum = [];
+      for(var key in headers) {
+        accum.push(key.toString() + ': ' + headers[key]);
+      }
+      return accum;
+    }
   },
   Query: {
-    wiredPosts: (root, args, context) => {
-      return fetch(`https://www.wired.com/wp-json/wp/v2/posts/`)
-        .then(res => res.json());
+    posts: (root, args, ctx) => {
+      const domain = args.domain;
+      return fetch(`https://${domain}/wp-json/wp/v2/posts/`, uaForFetch(ctx))
+      	.then(res => res.json());
     },
-    wiredAuthors: (root, args, context) => {
-      return fetch(`https://www.wired.com/wp-json/wp/v2/users/`)
-        .then(res => res.json());
+    authors: (root, args, ctx) => {
+      const domain = args.domain;
+      return fetch(`https://${domain}/wp-json/wp/v2/users/`, uaForFetch(ctx))
+      	.then(res => res.json());
     },
     myFavoriteArtists: (root, args, context) => {
       return Promise.all(myFavoriteArtists.map(({name, id}) => {
         return fetch(`https://app.ticketmaster.com/discovery/v2/attractions/${id}.json?apikey=${context.secrets.TM_API_KEY}`)
           .then(res => res.json())
           .then(data => {
-            return { name, id, ...data };
+          	return { name, id, ...data };
           });
       }));
+    },
+    serialJsonResponse: (root, args, ctx) => {
+      return fetch(`${args.schema}${args.domain}${args.url}`, uaForFetch(ctx));
     }
   },
   Artist: {
-    twitterUrl: (artist) => {
-      return artist.externalLinks.twitter[0].url;
-    },
-    image: (artist) => artist.images[0].url,
+  	twitterUrl: artist => artist.externalLinks.twitter[0].url,
+    image: artist => artist.images[0].url,
     events: (artist, args, context) => {
       return fetch(`https://app.ticketmaster.com/discovery/v2/events.json?size=10&apikey=${context.secrets.TM_API_KEY}&attractionId=${artist.id}`)
         .then(res => res.json())
         .then(data => {
           // Sometimes, there are no upcoming events
-            return (data && data._embedded && data._embedded.events) || []
-      });
+        	return (data && data._embedded && data._embedded.events) || []
+      	});
     },
     
 	},
   Event: {
-    image: (event) => event.images[0].url,
-    startDateTime: (event) => event.dates.start.dateTime
+    image: event => event.images[0].url,
+    startDateTime: event => event.dates.start.dateTime
   }
 }
 
