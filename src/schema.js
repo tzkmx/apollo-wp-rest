@@ -17,27 +17,12 @@ const typeDefs = `
   scalar JSON
 
   type Query {
-    myFavoriteArtists: [Artist]
     posts(domain: String!): [Post]
     authors(domain: String!): [Author]
     serialJsonResponse(domain: String!,
         url: String = "/wp-json/wp/v2/",
 				schema: String = "https://"
     ): SerialJsonResponse
-  }
-
-  type Artist {
-		id: ID
-    name: String
-    image: String
-    twitterUrl: String
-    events: [Event]
-  }
-
-  type Event {
-    name: String
-    image: String
-    startDateTime: String
   }
 
 	type Post {
@@ -70,8 +55,8 @@ const typeDefs = `
 `;
 
 const uaForFetch = (context) => { 
-  return { headers: { "User-Agent": `${context.secrets.user_agent}` } }
-}
+  return { headers: { "User-Agent": `${context.secrets.user_agent}` } };
+};
 
 const resolvers = {
   JSON: GraphQLJSON,
@@ -120,37 +105,11 @@ const resolvers = {
       return fetch(`https://${domain}/wp-json/wp/v2/users/`, uaForFetch(ctx))
       	.then(res => res.json());
     },
-    myFavoriteArtists: (root, args, context) => {
-      return Promise.all(myFavoriteArtists.map(({name, id}) => {
-        return fetch(`https://app.ticketmaster.com/discovery/v2/attractions/${id}.json?apikey=${context.secrets.TM_API_KEY}`)
-          .then(res => res.json())
-          .then(data => {
-          	return { name, id, ...data };
-          });
-      }));
-    },
     serialJsonResponse: (root, args, ctx) => {
       return fetch(`${args.schema}${args.domain}${args.url}`, uaForFetch(ctx));
     }
-  },
-  Artist: {
-  	twitterUrl: artist => artist.externalLinks.twitter[0].url,
-    image: artist => artist.images[0].url,
-    events: (artist, args, context) => {
-      return fetch(`https://app.ticketmaster.com/discovery/v2/events.json?size=10&apikey=${context.secrets.TM_API_KEY}&attractionId=${artist.id}`)
-        .then(res => res.json())
-        .then(data => {
-          // Sometimes, there are no upcoming events
-        	return (data && data._embedded && data._embedded.events) || []
-      	});
-    },
-    
-	},
-  Event: {
-    image: event => event.images[0].url,
-    startDateTime: event => event.dates.start.dateTime
   }
-}
+};
 
 // Required: Export the GraphQL.js schema object as "schema"
 export const schema = makeExecutableSchema({
@@ -158,20 +117,6 @@ export const schema = makeExecutableSchema({
   resolvers,
 });
 
-const myFavoriteArtists = [
-  {
-    name: 'Kansas',
-    id: 'K8vZ9171C-f',
-  },
-  {
-    name: 'Lil Yachty',
-    id: 'K8vZ9174v57',
-  },
-  {
-    name: 'Jason Mraz',
-    id: 'K8vZ9171CVV',
-  },
-];
 
 // Optional: Export a function to get context from the request. It accepts two
 // parameters - headers (lowercased http headers) and secrets (secrets defined
@@ -181,4 +126,4 @@ export function context(headers, secrets) {
     headers,
     secrets,
   };
-};
+}

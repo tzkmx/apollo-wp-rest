@@ -19,18 +19,21 @@ server.use('/graphql', bodyParser.json(), graphqlExpress(request => ({
 
 server.use('/graphiql', graphiqlExpress({
   endpointURL: '/graphql',
-  query: `{
-  columna: serialJsonResponse(domain: "elsemanario.com", url: "/wp-json/boletim/v1/columns/?skip=0&num=1") {
-    ...theresponse
-  }
-  embed: serialJsonResponse(domain: "elsemanario.com", url: "/wp-json/oembed/1.0/embed/?url=https://elsemanario.com/?p=232033") {
-    ...theresponse
-  }
-  semanario: posts(domain: "elsemanario.com") {
+  query: `query ($domain1: String!,
+  $domain2: String!,
+	$url1: String!,
+	$url2: String!) {
+  semanario: posts(domain: $domain1) {
     ...thepost
   }
-  wired: posts(domain: "www.wired.com") {
+  wired: posts(domain: $domain2) {
     ...thepost
+  }
+  columna: serialJsonResponse(domain: $domain1, url: $url1) {
+    ...theresponse
+  }
+  embed: serialJsonResponse(domain: $domain1, url: $url2) {
+    ...theresponse
   }
 }
 
