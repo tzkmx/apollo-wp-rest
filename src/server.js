@@ -1,21 +1,21 @@
-import express from 'express';
-import { graphqlExpress, graphiqlExpress } from 'graphql-server-express';
-import bodyParser from 'body-parser';
+import express from 'express'
+import { graphqlExpress, graphiqlExpress } from 'graphql-server-express'
+import bodyParser from 'body-parser'
 
-import { schema, rootValue, context } from './schema';
+import { schema, rootValue, context } from './schema'
 
-const PORT = 3000;
-const server = express();
+const PORT = 3000
+const server = express()
 
-if (typeof process.env.user_agent === 'undefined') {
-  console.warn('WARNING: process.env.user_agent is not defined. Check README.md for more information');
+if (typeof process.env.userAgent === 'undefined') {
+  console.warn('WARNING: process.env.user_agent is not defined. Check README.md for more information')
 }
 
 server.use('/graphql', bodyParser.json(), graphqlExpress(request => ({
   schema,
   rootValue,
-  context: context(request.headers, process.env),
-})));
+  context: context(request.headers, process.env)
+})))
 
 server.use('/graphiql', graphiqlExpress({
   endpointURL: '/graphql',
@@ -50,10 +50,10 @@ fragment theresponse on SerialJsonResponse {
   response
   headers
 }
-`,
-}));
+`
+}))
 
 server.listen(PORT, () => {
-  console.log(`GraphQL Server is now running on http://localhost:${PORT}/graphql`);
-  console.log(`View GraphiQL at http://localhost:${PORT}/graphiql`);
-});
+  console.log(`GraphQL Server is now running on http://localhost:${PORT}/graphql`)
+  console.log(`View GraphiQL at http://localhost:${PORT}/graphiql`)
+})
