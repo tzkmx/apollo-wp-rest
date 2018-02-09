@@ -1,16 +1,12 @@
-// Welcome to Launchpad!
-// Log in to edit and save pads, run queries in GraphiQL on the right.
-// Click "Download" above to get a zip with a standalone Node.js server.
-// See docs and examples at https://github.com/apollographql/awesome-launchpad
-
 // graphql-tools combines a schema string with resolvers.
 import {
-  makeExecutableSchema,
-} from 'graphql-tools';
+  makeExecutableSchema
+} from 'graphql-tools'
 
-import fetch from 'node-fetch';
-import GraphQLJSON from 'graphql-type-json';
-//import {jpath} from 'json-path';
+import fetch from 'isomorphic-fetch'
+import GraphQLJSON from 'graphql-type-json'
+import {uaForFetch} from './utils'
+import {userLoaderWithContext} from './userDataLoader'
 
 // Construct a schema, using GraphQL schema language
 const typeDefs = `
@@ -52,25 +48,20 @@ const typeDefs = `
     url: String!
     headers: [String]
   }
-`;
-
-const uaForFetch = (context) => { 
-  return { headers: { "User-Agent": `${context.secrets.user_agent}` } };
-};
+`
 
 const resolvers = {
   JSON: GraphQLJSON,
   Post: {
     title: post => post.title.rendered,
     url: post => post.link,
-    author: (post,args,ctx) => {
-      const id = post.author;
-      const domain = post.link.split('/').slice(0,3).join('/');
-      return fetch(`${domain}/wp-json/wp/v2/users/${id}`, uaForFetch(ctx))
-      	.then(res => res.json());
+    author: (post, args, ctx) => {
+      const id = post.author
+      const domain = post.link.split('/').slice(0, 3).join('/')
+      return userLoaderWithContext(ctx)(domain).load(id)
     },
     content: post => post.content.rendered,
-    excerpt: post => post.excerpt.rendered,
+    excerpt: post => post.excerpt.rendered
   },
   Author: {
     name: author => author.name,
@@ -86,44 +77,43 @@ const resolvers = {
     url: response => response.clone().url,
     response: response => response.clone().json(),
     headers: response => {
-      const headers = response.clone().headers._headers;
-      let accum = [];
-      for(var key in headers) {
-        accum.push(key.toString() + ': ' + headers[key]);
+      const headers = response.clone().headers._headers
+      let accum = []
+      for (var key in headers) {
+        accum.push(key.toString() + ': ' + headers[key])
       }
-      return accum;
+      return accum
     }
   },
   Query: {
     posts: (root, args, ctx) => {
-      const domain = args.domain;
+      const domain = args.domain
       return fetch(`https://${domain}/wp-json/wp/v2/posts/`, uaForFetch(ctx))
-      	.then(res => res.json());
+      	.then(res => res.json())
     },
     authors: (root, args, ctx) => {
-      const domain = args.domain;
+      const domain = args.domain
       return fetch(`https://${domain}/wp-json/wp/v2/users/`, uaForFetch(ctx))
-      	.then(res => res.json());
+      	.then(res => res.json())
     },
     serialJsonResponse: (root, args, ctx) => {
-      return fetch(`${args.schema}${args.domain}${args.url}`, uaForFetch(ctx));
+      return fetch(`${args.schema}${args.domain}${args.url}`, uaForFetch(ctx))
     }
   }
-};
+}
 
 // Required: Export the GraphQL.js schema object as "schema"
 export const schema = makeExecutableSchema({
   typeDefs,
-  resolvers,
-});
-
+  resolvers
+})
 
 // Optional: Export a function to get context from the request. It accepts two
 // parameters - headers (lowercased http headers) and secrets (secrets defined
 // in secrets section). It must return an object (or a promise resolving to it).
-export function context(headers, secrets) {
+export function context (headers, secrets) {
   return {
     headers,
-    secrets,
-  };
+    secrets
+  }
 }
