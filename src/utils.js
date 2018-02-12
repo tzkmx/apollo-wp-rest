@@ -1,8 +1,5 @@
-const uaForFetch = (context) => {
-  const secrets = typeof context === 'undefined'
-    ? { userAgent: navigator.userAgent }
-    : context.secrets
-  return { headers: { 'User-Agent': `${secrets.userAgent}` } }
+const uaForFetch = ({secrets}) => {
+  return typeof window.navigator !== 'undefined' ? null : { headers: { 'User-Agent': `${secrets.userAgent}` } }
 }
 
 export {uaForFetch}

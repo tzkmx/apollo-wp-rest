@@ -1,6 +1,6 @@
 {
   "name": "graphql-wordpress-rest-api",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "A custom GraphQL wrapper for the native WordPress REST API",
   "repository": {
     "type": "git",
@@ -9,12 +9,13 @@
   "main": "./src/server.js",
   "scripts": {
     "start": "nodemon ./src/server.js --exec babel-node -e js",
-    "build": "npm run webpack",
+    "build": "webpack",
     "dev": "webpack-dev-server"
   },
   "author": "Jesus E. Franco Martinez <jefrancomix@gmail.com>",
   "devDependencies": {
-    "babel-cli": "^6.24.0",
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
     "babel-plugin-transform-async-generator-functions": "^6.24.1",
     "babel-plugin-transform-object-rest-spread": "^6.23.0",
     "babel-plugin-transform-runtime": "^6.23.0",

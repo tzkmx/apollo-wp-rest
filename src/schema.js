@@ -1,111 +1,98 @@
 // graphql-tools combines a schema string with resolvers.
-import {
-  makeExecutableSchema
-} from 'graphql-tools'
-
 import fetch from 'isomorphic-fetch'
-import GraphQLJSON from 'graphql-type-json'
 import {uaForFetch} from './utils'
 import {userLoaderWithContext} from './userDataLoader'
 
-// Construct a schema, using GraphQL schema language
-const typeDefs = `
-  scalar JSON
+import {
+  GraphQLObjectType,
+  GraphQLInt,
+  GraphQLString,
+  GraphQLNonNull,
+  GraphQLID,
+  GraphQLSchema,
+  GraphQLList
+} from 'graphql'
 
-  type Query {
-    posts(domain: String!): [Post]
-    authors(domain: String!): [Author]
-    serialJsonResponse(domain: String!,
-        url: String = "/wp-json/wp/v2/",
-				schema: String = "https://"
-    ): SerialJsonResponse
-  }
-
-	type Post {
-		id: ID
-		title: String
-		url: String
-		author: Author
-    content: String
-    excerpt: String
-	}
-
-	 type Author {
-    id: Int
-    url: String
-    name: String
-    avatars: AvatarCollection
-  }
-
-	type AvatarCollection {
-		big: String
-    medium: String
-    small: String
-  }
-
-	type SerialJsonResponse {
-    response: JSON
-    url: String!
-    headers: [String]
-  }
-`
-
-const resolvers = {
-  JSON: GraphQLJSON,
-  Post: {
-    title: post => post.title.rendered,
-    url: post => post.link,
-    author: (post, args, ctx) => {
-      const id = post.author
-      const domain = post.link.split('/').slice(0, 3).join('/')
-      return userLoaderWithContext(ctx)(domain).load(id)
+const AuthorType = new GraphQLObjectType({
+  name: 'Author',
+  description: 'Registered writer of articles',
+  fields: () => ({
+    id: {
+      type: new GraphQLNonNull(GraphQLInt),
+      description: 'Id of the user registered'
     },
-    content: post => post.content.rendered,
-    excerpt: post => post.excerpt.rendered
-  },
-  Author: {
-    name: author => author.name,
-    url: author => author.link,
-    avatars: author => author.avatar_urls
-  },
-  AvatarCollection: {
-    big: col => col[96],
-    medium: col => col[48],
-    small: col => col[24]
-  },
-  SerialJsonResponse: {
-    url: response => response.clone().url,
-    response: response => response.clone().json(),
-    headers: response => {
-      const headers = response.clone().headers._headers
-      let accum = []
-      for (var key in headers) {
-        accum.push(key.toString() + ': ' + headers[key])
+    url: {
+      type: GraphQLString,
+      description: 'URL of the user to contact them',
+      resolve: author => author.link
+    },
+    name: {
+      type: GraphQLString,
+      description: 'Name of the Author'
+    }
+  })
+})
+
+const PostType = new GraphQLObjectType({
+  name: 'Post',
+  description: 'Article in the website',
+  fields: () => ({
+    id: {
+      type: GraphQLID,
+      description: 'Permanent identifier of the post'
+    },
+    title: {
+      type: GraphQLString,
+      description: 'Title of the article',
+      resolve: post => post.title.rendered
+    },
+    url: {
+      type: GraphQLString,
+      description: 'URL of the article',
+      resolve: post => post.link
+    },
+    content: {
+      type: GraphQLString,
+      description: 'Article contents',
+      resolve: post => post.content.rendered
+    },
+    excerpt: {
+      type: GraphQLString,
+      description: 'Summary of the article',
+      resolve: post => post.excerpt.rendered
+    },
+    author: {
+      type: AuthorType,
+      description: 'Author of the article',
+      resolve: (post, args, ctx) => {
+        const id = post.author
+        const domain = post.link.split('/').slice(0, 3).join('/')
+        return userLoaderWithContext(ctx)(domain).load(id)
       }
-      return accum
     }
-  },
-  Query: {
-    posts: (root, args, ctx) => {
-      const domain = args.domain
-      return fetch(`https://${domain}/wp-json/wp/v2/posts/`, uaForFetch(ctx))
-      	.then(res => res.json())
-    },
-    authors: (root, args, ctx) => {
-      const domain = args.domain
-      return fetch(`https://${domain}/wp-json/wp/v2/users/`, uaForFetch(ctx))
-      	.then(res => res.json())
-    },
-    serialJsonResponse: (root, args, ctx) => {
-      return fetch(`${args.schema}${args.domain}${args.url}`, uaForFetch(ctx))
-    }
-  }
-}
-
-// Required: Export the GraphQL.js schema object as "schema"
-export const schema = makeExecutableSchema({
-  typeDefs,
-  resolvers
+  })
+})
+export const schema = new GraphQLSchema({
+  query: new GraphQLObjectType({
+    name: 'Query',
+    description: 'Queries available',
+    fields: () => ({
+      posts: {
+        type: new GraphQLList(PostType),
+        description: 'List of articles in the website',
+        args: {
+          domain: {
+            type: new GraphQLNonNull(GraphQLString)
+          }
+        },
+        resolve: (_, args, ctx) => {
+          const domain = args.domain
+          return fetch(`https://${domain}/wp-json/wp/v2/posts/`/*, uaForFetch(ctx)*/)
+            .then(res => res.json())
+        }
+      }
+    })
+  })
 })
 
 // Optional: Export a function to get context from the request. It accepts two
@@ -114,6 +101,6 @@ export const schema = makeExecutableSchema({
 export function context (headers, secrets) {
   return {
     headers,
-    secrets
+    secrets: typeof secrets !== 'undefined' ? secrets : {userAgent: navigator.userAgent}
   }
 }

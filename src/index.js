@@ -1,5 +1,5 @@
 import { graphql } from 'graphql'
-import { schema } from './schema'
+import { schema, context } from './schema'
 
 const query = `
   {
@@ -12,7 +12,7 @@ const query = `
   }
 `
 
-graphql(schema, query).then(result => {
+graphql(schema, query, {}, context()).then(result => {
   console.log(result)
 })
 
