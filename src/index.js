@@ -26,4 +26,3 @@ const query = `
 graphql(schema, query, {}, context()).then(result => {
   console.log(result)
 })
-

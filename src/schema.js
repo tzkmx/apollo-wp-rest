@@ -3,13 +3,10 @@ import {
   makeExecutableSchema
 } from 'graphql-tools'
 
-import fetch from 'isomorphic-fetch'
-import GraphQLJSON from 'graphql-type-json'
-import {uaForFetch} from './utils'
-import {userLoaderWithContext} from './userDataLoader'
 import Post from './types/post'
 import Author from './types/author'
 import SerialJsonResponse from './types/serialJsonResponse'
+import {resolvers} from './resolvers/'
 
 // Construct a schema, using GraphQL schema language
 const SchemaDefinition = `
@@ -28,60 +25,6 @@ const QueryRootType = `
     ): SerialJsonResponse
   }
 `
-
-
-const resolvers = {
-  Post: {
-    title: post => post.title.rendered,
-    url: post => post.link,
-    author: (post, args, ctx) => {
-      const id = post.author
-      const domain = post.link.split('/').slice(0, 3).join('/')
-      return userLoaderWithContext(ctx)(domain).load(id)
-    },
-    content: post => post.content.rendered,
-    excerpt: post => post.excerpt.rendered
-  },
-  Author: {
-    name: author => author.name,
-    url: author => author.link,
-    avatars: author => author.avatar_urls
-  },
-  AvatarCollection: {
-    big: col => col[96],
-    medium: col => col[48],
-    small: col => col[24]
-  },
-  JSON: GraphQLJSON,
-  SerialJsonResponse: {
-    url: response => response.clone().url,
-    response: response => response.clone().json(),
-    headers: response => {
-      const headers = response.clone().headers._headers
-      let accum = []
-      for (var key in headers) {
-        accum.push(key.toString() + ': ' + headers[key])
-      }
-      return accum
-    }
-  },
-  QueryRootType: {
-    posts: (root, args, ctx) => {
-      const domain = args.domain
-      return fetch(`https://${domain}/wp-json/wp/v2/posts/`, uaForFetch(ctx))
-      	.then(res => res.json())
-    },
-    authors: (root, args, ctx) => {
-      const domain = args.domain
-      return fetch(`https://${domain}/wp-json/wp/v2/users/`, uaForFetch(ctx))
-        .then(res => res.json())
-    },
-    serialJsonResponse: (root, args, ctx) => {
-      return fetch(`${args.schema}${args.domain}${args.url}`, uaForFetch(ctx))
-    }
-  }
-}
-
 
 // Required: Export the GraphQL.js schema object as "schema"
 export const schema = makeExecutableSchema({
