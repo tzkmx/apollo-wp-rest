@@ -7,51 +7,30 @@ import fetch from 'isomorphic-fetch'
 import GraphQLJSON from 'graphql-type-json'
 import {uaForFetch} from './utils'
 import {userLoaderWithContext} from './userDataLoader'
+import Post from './types/post'
+import Author from './types/author'
+import SerialJsonResponse from './types/serialJsonResponse'
 
 // Construct a schema, using GraphQL schema language
-const typeDefs = `
-  scalar JSON
-
-  type Query {
-    posts(domain: String!): [Post]
-    authors(domain: String!): [Author]
-    serialJsonResponse(domain: String!,
-        url: String = "/wp-json/wp/v2/",
-				schema: String = "https://"
-    ): SerialJsonResponse
-  }
-
-	type Post {
-		id: ID
-		title: String
-		url: String
-		author: Author
-    content: String
-    excerpt: String
-	}
-
-	 type Author {
-    id: Int
-    url: String
-    name: String
-    avatars: AvatarCollection
-  }
-
-	type AvatarCollection {
-		big: String
-    medium: String
-    small: String
-  }
-
-	type SerialJsonResponse {
-    response: JSON
-    url: String!
-    headers: [String]
+const SchemaDefinition = `
+  schema {
+    query: QueryRootType
   }
 `
 
+const QueryRootType = `
+  type QueryRootType {
+    posts(domain: String!): [Post]
+    authors(domain: String!): [Author]
+    serialJsonResponse(domain: String!,
+      url: String = "/wp-json/wp/v2/",
+      schema: String = "https://"
+    ): SerialJsonResponse
+  }
+`
+
+
 const resolvers = {
-  JSON: GraphQLJSON,
   Post: {
     title: post => post.title.rendered,
     url: post => post.link,
@@ -73,6 +52,7 @@ const resolvers = {
     medium: col => col[48],
     small: col => col[24]
   },
+  JSON: GraphQLJSON,
   SerialJsonResponse: {
     url: response => response.clone().url,
     response: response => response.clone().json(),
@@ -85,7 +65,7 @@ const resolvers = {
       return accum
     }
   },
-  Query: {
+  QueryRootType: {
     posts: (root, args, ctx) => {
       const domain = args.domain
       return fetch(`https://${domain}/wp-json/wp/v2/posts/`, uaForFetch(ctx))
@@ -94,7 +74,7 @@ const resolvers = {
     authors: (root, args, ctx) => {
       const domain = args.domain
       return fetch(`https://${domain}/wp-json/wp/v2/users/`, uaForFetch(ctx))
-      	.then(res => res.json())
+        .then(res => res.json())
     },
     serialJsonResponse: (root, args, ctx) => {
       return fetch(`${args.schema}${args.domain}${args.url}`, uaForFetch(ctx))
@@ -102,9 +82,16 @@ const resolvers = {
   }
 }
 
+
 // Required: Export the GraphQL.js schema object as "schema"
 export const schema = makeExecutableSchema({
-  typeDefs,
+  typeDefs: [
+    SchemaDefinition,
+    QueryRootType,
+    Post,
+    Author,
+    SerialJsonResponse
+  ],
   resolvers
 })
 
@@ -114,6 +101,6 @@ export const schema = makeExecutableSchema({
 export function context (headers, secrets) {
   return {
     headers,
-    secrets
+    secrets: typeof secrets !== 'undefined' ? secrets : {userAgent: navigator.userAgent}
   }
 }
