@@ -1,6 +1,6 @@
 import {uaForFetch} from './utils'
 import DataLoader from 'dataloader'
-import fetch from 'isomorphic-fetch'
+// import fetch from 'isomorphic-fetch'
 
 const loaderRegistry = {}
 

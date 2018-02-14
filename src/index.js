@@ -23,6 +23,19 @@ const query = `
   }
 `
 
-graphql(schema, query, {}, context()).then(result => {
-  console.log(result)
-})
+function run() {
+  graphql(schema, query, {}, context()).then(result => {
+    console.log(result)
+  })
+}
+
+if (!window.fetch) {
+
+  require.ensure([], () => {
+    require('isomorphic-fetch')
+    run()
+  })
+
+} else {
+  run()
+}
