@@ -1,5 +1,6 @@
 import { uaForFetch } from './utils'
 import { userLoaderWithContext } from './userDataLoader'
+const { imageDataLoader } = require('./imageDataLoader')
 
 const fetch = require('isomorphic-fetch')
 const GraphQLJSON = require('graphql-type-json')
@@ -29,6 +30,13 @@ const typeDefs = `
     author: Author
     content: String
     excerpt: String
+    image: PostThumbnail
+  }
+  
+  type PostThumbnail {
+    url: String
+    width: Int
+    height: Int
   }
 
    type Author {
@@ -61,6 +69,13 @@ const resolvers = {
       const domain = post.link.split('/').slice(0, 3).join('/')
       return userLoaderWithContext(ctx)(domain).load(id)
     },
+    image: async function getFeaturedMedia(post, args) {
+      const id = post.featured_media
+      const domain = post.link.split('/').slice(0, 3).join('/')
+      const imageData = await imageDataLoader(domain).load(id)
+      const wantedSize = args['size']
+      return imageData.media_details.sizes[wantedSize]
+    },
     content: post => post.content.rendered,
     excerpt: post => post.excerpt.rendered
   },
@@ -73,6 +88,9 @@ const resolvers = {
     big: col => col[96],
     medium: col => col[48],
     small: col => col[24]
+  },
+  PostThumbnail: {
+    url: image => image.source_url
   },
   SerialJsonResponse: {
     url: response => response.clone().url,
