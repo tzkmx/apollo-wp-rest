@@ -21,8 +21,8 @@ server.use('/graphiql', graphiqlExpress({
   endpointURL: '/graphql',
   query: `query ($domain1: String!,
   $domain2: String!,
-	$url1: String!,
-	$url2: String!) {
+  $url1: String!,
+  $url2: String!) {
   semanario: posts(domain: $domain1) {
     ...thepost
   }

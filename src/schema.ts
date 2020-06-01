@@ -1,12 +1,12 @@
-// graphql-tools combines a schema string with resolvers.
-import {
-  makeExecutableSchema
-} from 'graphql-tools'
+import { uaForFetch } from './utils'
+import { userLoaderWithContext } from './userDataLoader'
 
-import fetch from 'isomorphic-fetch'
-import GraphQLJSON from 'graphql-type-json'
-import {uaForFetch} from './utils'
-import {userLoaderWithContext} from './userDataLoader'
+const fetch = require('isomorphic-fetch')
+const GraphQLJSON = require('graphql-type-json')
+// graphql-tools combines a schema string with resolvers.
+const {
+  makeExecutableSchema
+} = require('graphql-tools')
 
 // Construct a schema, using GraphQL schema language
 const typeDefs = `
@@ -17,33 +17,34 @@ const typeDefs = `
     authors(domain: String!): [Author]
     serialJsonResponse(domain: String!,
         url: String = "/wp-json/wp/v2/",
-				schema: String = "https://"
+        // eslint-disable-next-line no-tabs
+        schema: String = "https://"
     ): SerialJsonResponse
   }
 
-	type Post {
-		id: ID
-		title: String
-		url: String
-		author: Author
+  type Post {
+    id: ID
+    title: String
+    url: String
+    author: Author
     content: String
     excerpt: String
-	}
+  }
 
-	 type Author {
+   type Author {
     id: Int
     url: String
     name: String
     avatars: AvatarCollection
   }
 
-	type AvatarCollection {
-		big: String
+  type AvatarCollection {
+    big: String
     medium: String
     small: String
   }
 
-	type SerialJsonResponse {
+  type SerialJsonResponse {
     response: JSON
     url: String!
     headers: [String]
@@ -78,23 +79,23 @@ const resolvers = {
     response: response => response.clone().json(),
     headers: response => {
       const headers = response.clone().headers._headers
-      let accum = []
-      for (var key in headers) {
-        accum.push(key.toString() + ': ' + headers[key])
-      }
-      return accum
+      return Object.keys(headers).reduce(function (acc, key) {
+        // @ts-ignore
+        acc.push(`${key}: ${headers[key]}`)
+        return acc
+      }, [])
     }
   },
   Query: {
     posts: (root, args, ctx) => {
       const domain = args.domain
       return fetch(`https://${domain}/wp-json/wp/v2/posts/`, uaForFetch(ctx))
-      	.then(res => res.json())
+        .then(res => res.json())
     },
     authors: (root, args, ctx) => {
       const domain = args.domain
       return fetch(`https://${domain}/wp-json/wp/v2/users/`, uaForFetch(ctx))
-      	.then(res => res.json())
+        .then(res => res.json())
     },
     serialJsonResponse: (root, args, ctx) => {
       return fetch(`${args.schema}${args.domain}${args.url}`, uaForFetch(ctx))
